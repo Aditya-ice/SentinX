@@ -1,0 +1,138 @@
+# Deployment for SentinX API
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sentinx-api
+  labels:
+    app: sentinx-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: sentinx-api
+  template:
+    metadata:
+      labels:
+        app: sentinx-api
+    spec:
+      containers:
+        - name: api
+          image: sentinx-api:latest
+          imagePullPolicy: Never # if using local minikube/docker-desktop cache
+          ports:
+            - containerPort: 8000
+          env:
+            - name: REDIS_HOST
+              value: "sentinx-redis-master" # Assuming Bitnami Redis Helm release
+---
+# Service for SentinX API
+apiVersion: v1
+kind: Service
+metadata:
+  name: sentinx-api-service
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: 8000
+  selector:
+    app: sentinx-api
+---
+# Deployment for SentinX Ingestion (Traffic Generator)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sentinx-ingestion
+  labels:
+    app: sentinx-ingestion
+spec:
+  replicas: 1 # Scale up for more traffic
+  selector:
+    matchLabels:
+      app: sentinx-ingestion
+  template:
+    metadata:
+      labels:
+        app: sentinx-ingestion
+    spec:
+      containers:
+        - name: ingestion
+          image: sentinx-ingestion:latest
+          imagePullPolicy: Never
+          env:
+            - name: KAFKA_BROKER
+              value: "sentinx-kafka:9092"
+          command:
+            [
+              "python",
+              "producer.py",
+              "--eps",
+              "5000",
+              "--broker",
+              "$(KAFKA_BROKER)",
+            ]
+---
+# Deployment for SentinX Analytics (PySpark ML)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sentinx-analytics
+  labels:
+    app: sentinx-analytics
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sentinx-analytics
+  template:
+    metadata:
+      labels:
+        app: sentinx-analytics
+    spec:
+      containers:
+        - name: analytics
+          image: sentinx-analytics:latest
+          imagePullPolicy: Never
+          env:
+            - name: KAFKA_BROKER
+              value: "sentinx-kafka:9092"
+            - name: REDIS_HOST
+              value: "sentinx-redis-master"
+          command: ["python3", "streaming_job.py"]
+---
+# Deployment for SentinX Frontend (React/Vite)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sentinx-frontend
+  labels:
+    app: sentinx-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sentinx-frontend
+  template:
+    metadata:
+      labels:
+        app: sentinx-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: sentinx-frontend:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 80
+---
+# Service for SentinX Frontend
+apiVersion: v1
+kind: Service
+metadata:
+  name: sentinx-frontend-service
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: 80
+  selector:
+    app: sentinx-frontend

@@ -1,0 +1,16 @@
+# Instruction sheet for setting up infrastructure via Helm
+# 
+# Usage:
+# 1. Add Bitnami repo: 
+#    helm repo add bitnami https://charts.bitnami.com/bitnami
+#    helm repo update
+# 
+# 2. Install Kafka:
+#    helm install sentinx-kafka bitnami/kafka --set zookeeper.enabled=true
+#
+# 3. Install Redis:
+#    helm install sentinx-redis bitnami/redis --set architecture=standalone --set auth.enabled=false
+#
+# 4. Install Elasticsearch (Elastic chart):
+#    helm repo add elastic https://helm.elastic.co
+#    helm install sentinx-es elastic/elasticsearch --set replicas=1 --set minimumMasterNodes=1
